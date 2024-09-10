@@ -20,7 +20,7 @@ logger.setLevel(logging.DEBUG)
 
 # define file handler and set formatter
 file_handler = logging.FileHandler('logfile_emulator.log')
-formatter    = logging.Formatter('%(asctime)s : %(levelname)s : %(name)s : %(message)s')
+formatter = logging.Formatter('%(asctime)s : %(levelname)s : %(name)s : %(message)s')
 file_handler.setFormatter(formatter)
 
 # add file handler to logger
