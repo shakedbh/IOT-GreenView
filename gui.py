@@ -1,24 +1,20 @@
 import os
-#from sqlite3.dbapi2 import Date
 import sys
 import random
-# pip install pyqt5-tools
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
-from matplotlib.pyplot import get
-BASE_PATH = os.path.abspath(os.path.dirname(__file__))
 from init import *
 from agent import Mqtt_client 
 import time
 from icecream import ic
 from datetime import datetime 
 import data_acq as da
-# pip install pyqtgraph
-#from pyqtgraph import PlotWidget, plot
 import pyqtgraph as pg
-
 import logging
+
+
+BASE_PATH = os.path.abspath(os.path.dirname(__file__))
 
 # Gets or creates a logger
 logger = logging.getLogger(__name__)  
@@ -28,46 +24,46 @@ logger.setLevel(logging.WARNING)
 
 # define file handler and set formatter
 file_handler = logging.FileHandler('logfile_gui.log')
-formatter    = logging.Formatter('%(asctime)s : %(levelname)s : %(name)s : %(message)s')
+formatter = logging.Formatter('%(asctime)s : %(levelname)s : %(name)s : %(message)s')
 file_handler.setFormatter(formatter)
 
 # add file handler to logger
 logger.addHandler(file_handler)
 
-# Logs
-# logger.debug('A debug message')
-# logger.info('An info message')
-# logger.warning('Something is not right.')
-# logger.error('A Major error has happened.')
-# logger.critical('Fatal error. Cannot continue')
-
 
 global WatMet
-WatMet=True
+WatMet = True
+
+
 def time_format():
     return f'{datetime.now()}  GUI|> '
+
+
 ic.configureOutput(prefix=time_format)
-ic.configureOutput(includeContext=False) # use True for including script file context file 
+ic.configureOutput(includeContext=False)  # use True for including script file context file
 # Creating Client name - should be unique 
 global clientname
-r=random.randrange(1,10000) # for creating unique client ID
-clientname="IOT_clientId-nXLMZeDcjH"+str(r)
+r = random.randrange(1, 10000)  # for creating unique client ID
+clientname = "IOT_clientId-nXLMZeDcjH"+str(r)
 
-def check(fnk):    
+
+def check(fnk):
     try:
-        rz=fnk
+        rz = fnk
     except:
-        rz='NA'
+        rz = 'NA'
     return rz        
+
 
 class MC(Mqtt_client):
     def __init__(self):
         super().__init__()
+
     def on_message(self, client, userdata, msg):
             global WatMet
-            topic=msg.topic            
-            m_decode=str(msg.payload.decode("utf-8","ignore"))
-            ic("message from:"+topic, m_decode)
+            topic = msg.topic
+            m_decode = str(msg.payload.decode("utf-8", "ignore"))
+            ic("message from:" + topic, m_decode)
             if 'Room_1' in topic:
                 mainwin.airconditionDock.update_temp_Room(check(m_decode.split('Temperature: ')[1].split(' Humidity: ')[0]))
             if 'Common' in topic:            
@@ -81,40 +77,37 @@ class MC(Mqtt_client):
                     WatMet = True
             if 'alarm' in topic:            
                 mainwin.statusDock.update_mess_win(da.timestamp()+': ' + m_decode)
-            if 'boiler' in topic:
-                mainwin.statusDock.boilerTemp.setText(check(m_decode.split('Temperature: ')[1]))
-            if 'freezer' in topic:
-                mainwin.statusDock.freezerTemp.setText(check(m_decode.split('Temperature: ')[1]))
-            if 'refrigerator' in topic:
-                mainwin.statusDock.fridgeTemp.setText(check(m_decode.split('Temperature: ')[1]))    
-
+            if 'Temperature' in topic:
+                mainwin.statusDock.light.setText(check(m_decode.split('Temperature: ')[1]))
+            if 'light' in topic:
+                mainwin.statusDock.temp.setText(check(m_decode.split('Lm: ')[1]))
 
    
 class ConnectionDock(QDockWidget):
-    """Main """
-    def __init__(self,mc):
+    """Main"""
+    def __init__(self, mc):
         QDockWidget.__init__(self)        
         self.mc = mc
-        self.topic = comm_topic+'#'        
+        self.topic = comm_topic + '#'
         self.mc.set_on_connected_to_form(self.on_connected)        
-        self.eHostInput=QLineEdit()
+        self.eHostInput = QLineEdit()
         self.eHostInput.setInputMask('999.999.999.999')
         self.eHostInput.setText(broker_ip)        
-        self.ePort=QLineEdit()
+        self.ePort = QLineEdit()
         self.ePort.setValidator(QIntValidator())
         self.ePort.setMaxLength(4)
         self.ePort.setText(broker_port)        
-        self.eClientID=QLineEdit()
+        self.eClientID = QLineEdit()
         global clientname
         self.eClientID.setText(clientname)        
-        self.eConnectButton=QPushButton("Connect", self)
+        self.eConnectButton = QPushButton("Connect", self)
         self.eConnectButton.setToolTip("click me to connect")
         self.eConnectButton.clicked.connect(self.on_button_connect_click)
         self.eConnectButton.setStyleSheet("background-color: red")        
-        formLayot=QFormLayout()
-        formLayot.addRow("Host",self.eHostInput )
-        formLayot.addRow("Port",self.ePort )        
-        formLayot.addRow("",self.eConnectButton)
+        formLayot = QFormLayout()
+        formLayot.addRow("Host", self.eHostInput)
+        formLayot.addRow("Port", self.ePort)
+        formLayot.addRow("", self.eConnectButton)
         widget = QWidget(self)
         widget.setLayout(formLayot)
         self.setTitleBarWidget(widget)
@@ -134,38 +127,35 @@ class ConnectionDock(QDockWidget):
         time.sleep(1)
         if not self.mc.subscribed:
             self.mc.subscribe_to(self.topic)
-            
+
+
 class StatusDock(QDockWidget):
     """Status """
-    def __init__(self,mc):
+    def __init__(self, mc):
         QDockWidget.__init__(self)        
         self.mc = mc
-        self.boilerTemp = QLabel()
-        self.boilerTemp.setText("80")
-        self.boilerTemp.setStyleSheet("color: red")
-        self.freezerTemp = QLabel()
-        self.freezerTemp.setText("-5")
-        self.freezerTemp.setStyleSheet("color: blue")
-        self.fridgeTemp = QLabel()
-        self.fridgeTemp.setText("4")
-        self.fridgeTemp.setStyleSheet("color: green")
+        self.light = QLabel()
+        self.light.setText("80")
+        self.light.setStyleSheet("color: red")
+        self.temp = QLabel()
+        self.temp.setText("-5")
+        self.temp.setStyleSheet("color: blue")
         self.wifi = QLabel()
         self.wifi.setText("Normal")
         self.wifi.setStyleSheet("color: green")
         self.door = QLabel()
         self.door.setText("Closed")
         self.door.setStyleSheet("color: green")
-        self.eRecMess=QTextEdit()
+        self.eRecMess = QTextEdit()
         self.eSubscribeButton = QPushButton("Subscribe",self)
         self.eSubscribeButton.clicked.connect(self.on_button_subscribe_click)       
-        formLayot=QFormLayout()
-        formLayot.addRow("Boiler temperature:", self.boilerTemp)
-        formLayot.addRow("Freezer temperature:", self.freezerTemp)
-        formLayot.addRow("Refrigerator temperature:", self.fridgeTemp)
-        formLayot.addRow("WI-Fi status:",self.wifi)
-        formLayot.addRow("Main Door:",self.door)        
-        formLayot.addRow("Alarm Messages:",self.eRecMess)
-        formLayot.addRow("",self.eSubscribeButton)                
+        formLayot = QFormLayout()
+        formLayot.addRow("Light:", self.light)
+        formLayot.addRow("Temperature:", self.temp)
+        formLayot.addRow("WI-Fi status:", self.wifi)
+        formLayot.addRow("Main Door:", self.door)
+        formLayot.addRow("Alarm Messages:", self.eRecMess)
+        formLayot.addRow("", self.eSubscribeButton)
         widget = QWidget(self)
         widget.setLayout(formLayot)
         self.setTitleBarWidget(widget)
@@ -177,37 +167,38 @@ class StatusDock(QDockWidget):
         self.eSubscribeButton.setStyleSheet("background-color: green")
     
     # create function that update text in received message window
-    def update_mess_win(self,text):
+    def update_mess_win(self, text):
         self.eRecMess.append(text)              
        
     def on_button_publish_click(self):
         self.mc.publish_to(self.ePublisherTopic.text(), self.eMessageBox.toPlainText())
         self.ePublishButton.setStyleSheet("background-color: yellow")
-        
+
+
 class GraphsDock(QDockWidget):
     """Graphs """
     def __init__(self,mc):
         QDockWidget.__init__(self)        
         self.mc = mc        
-        self.eElectricityButton = QPushButton("Show",self)
+        self.eElectricityButton = QPushButton("Show", self)
         self.eElectricityButton.clicked.connect(self.on_button_Elec_click)        
-        self.eElectricityText=QLineEdit()
+        self.eElectricityText = QLineEdit()
         self.eElectricityText.setText(" ")
-        self.eWaterButton = QPushButton("Show",self)
+        self.eWaterButton = QPushButton("Show", self)
         self.eWaterButton.clicked.connect(self.on_button_water_click)        
-        self.eWaterText= QLineEdit()
+        self.eWaterText = QLineEdit()
         self.eWaterText.setText(" ")
-        self.eStartDate= QLineEdit()
-        self.eEndDate= QLineEdit()
+        self.eStartDate = QLineEdit()
+        self.eEndDate = QLineEdit()
         self.eStartDate.setText("2021-05-10")
         self.eEndDate.setText("2021-05-25")
-        self.eDateButton=QPushButton("Insert", self)
+        self.eDateButton = QPushButton("Insert", self)
         self.eDateButton.clicked.connect(self.on_button_date_click)
-        self.date=self.on_button_date_click
-        formLayot=QFormLayout()       
-        formLayot.addRow("Electricity meter",self.eElectricityButton)
+        self.date = self.on_button_date_click
+        formLayot = QFormLayout()
+        formLayot.addRow("Electricity meter", self.eElectricityButton)
         formLayot.addRow(" ", self.eElectricityText)
-        formLayot.addRow("Water meter",self.eWaterButton)
+        formLayot.addRow("Water meter", self.eWaterButton)
         formLayot.addRow(" ", self.eWaterText)
         formLayot.addRow("Start date: ", self.eStartDate)
         formLayot.addRow("End date: ", self.eEndDate)
@@ -224,8 +215,8 @@ class GraphsDock(QDockWidget):
         self.eElectricityText.setText(text) 
 
     def on_button_date_click (self):
-        self.stratDateStr= self.eStartDate.text()
-        self.endDateStr= self.eEndDate.text()        
+        self.stratDateStr = self.eStartDate.text()
+        self.endDateStr = self.eEndDate.text()
 
     def on_button_water_click(self):
        self.update_plot(self.stratDateStr, self.endDateStr, 'WaterMeter')       
@@ -235,8 +226,8 @@ class GraphsDock(QDockWidget):
         self.update_plot(self.stratDateStr, self.endDateStr, 'ElecMeter')
         self.eElectricityButton.setStyleSheet("background-color: yellow")
 
-    def update_plot(self,date_st,date_end, meter):
-        rez= da.filter_by_date('data',date_st,date_end, meter)
+    def update_plot(self, date_st, date_end, meter):
+        rez = da.filter_by_date('data', date_st, date_end, meter)
         temperature = []  
         timenow = []       
         for row in rez:
@@ -246,55 +237,51 @@ class GraphsDock(QDockWidget):
         print(temperature)
         mainwin.plotsDock.plot(timenow, temperature) 
 
+
 class TempDock(QDockWidget):
     """Temp """
     def __init__(self,mc):
         QDockWidget.__init__(self)        
         self.mc = mc    
         
-        self.tBoiler = QComboBox()        
-        self.tBoiler.addItems(["Auto", "ON", "OFF"])
-        self.tBoiler.currentIndexChanged.connect(self.tb_selectionchange)        
-        self.tFreezer = QComboBox()        
-        self.tFreezer.addItems(["-5", "-10", "-15"])
-        #self.tFreezer.currentIndexChanged.connect(self.tF_selectionchange)
-        self.tRefrigerator = QComboBox()
-        self.tRefrigerator.addItems(["4", "3", "2", "1", "0", "-1", "-2", "-3", "-4"])
-        #self.tRefrigerator.currentIndexChanged.connect(self.tR_selectionchange)
-        self.tsetButton = QPushButton("SET(UPDATE)",self)
+        self.tlight = QComboBox()
+        self.tlight.addItems(["Auto", "ON", "OFF"])
+        self.tlight.currentIndexChanged.connect(self.tb_selectionchange)
+        self.tTemp = QComboBox()
+        self.tTemp.addItems(["-5", "-10", "-15"])
+        self.tsetButton = QPushButton("SET(UPDATE)", self)
         self.tsetButton.clicked.connect(self.on_tsetButton_click)
-        formLayot=QFormLayout()       
-        formLayot.addRow("Home Boiler",self.tBoiler)
-        formLayot.addRow("Kitchen Freezer",self.tFreezer)
-        formLayot.addRow("Refrigerator",self.tRefrigerator)
-        formLayot.addRow("",self.tsetButton)
+        formLayot = QFormLayout()
+        formLayot.addRow("Light", self.tlight)
+        formLayot.addRow("Temperature", self.tTemp)
+        formLayot.addRow("", self.tsetButton)
         widget = QWidget(self)
         widget.setLayout(formLayot)
         self.setWidget(widget)
         self.setWindowTitle("Set Temperature")
+
     def on_tsetButton_click(self):
         self.tsetButton.setStyleSheet("background-color: green")
-        self.mc.publish_to(comm_topic+'freezer/sub','Set temperature to: '+ self.tFreezer.currentText())
+        self.mc.publish_to(comm_topic + 'light/sub', 'Set to: ' + self.tTemp.currentText())
         time.sleep(0.2)
-        self.mc.publish_to(comm_topic+'refrigerator/sub','Set temperature to: '+ self.tRefrigerator.currentText())
-        time.sleep(0.2)
-        if "ON" in self.tBoiler.currentText():
-            self.tBoiler.setStyleSheet("color: green")
-            self.mc.publish_to(comm_topic+'boiler/sub','Set temperature to: ON')            
+        if "ON" in self.tlight.currentText():
+            self.tlight.setStyleSheet("color: green")
+            self.mc.publish_to(comm_topic+'light/sub', 'Set to: ON')
 
-    def tb_selectionchange(self,i):
-        print ("Current index",i,"selection changed ",self.tBoiler.currentText())
-        if "ON" in self.tBoiler.currentText():
-            self.tBoiler.setStyleSheet("color: green")
+    def tb_selectionchange(self, i):
+        print ("Current index", i, "selection changed ", self.tlight.currentText())
+        if "ON" in self.tlight.currentText():
+            self.tlight.setStyleSheet("color: green")
             # self.mc.publish_to('pr/Smart/boiler/sub','Set temperature to: ')
-        elif "OFF" in self.tBoiler.currentText():
-            self.tBoiler.setStyleSheet("color: red")
+        elif "OFF" in self.tlight.currentText():
+            self.tlight.setStyleSheet("color: red")
         else:
-            self.tBoiler.setStyleSheet("color: none") 
+            self.tlight.setStyleSheet("color: none")
+
 
 class AirconditionDock(QDockWidget):
     """Aircondition """
-    def __init__(self,mc):
+    def __init__(self, mc):
         QDockWidget.__init__(self)        
         self.mc = mc
         # Line #1
@@ -306,7 +293,7 @@ class AirconditionDock(QDockWidget):
         self.cb = QComboBox()        
         self.cb.addItems(["Living Room", "Room 1", "Room 2"])
         self.cb.currentIndexChanged.connect(self.selectionchange)
-		# Line #2
+        # Line #2
         self.l21 = QLabel()
         self.l21.setText("Temperature: Current")
         self.cRoomTemp=QLineEdit()
@@ -343,30 +330,30 @@ class AirconditionDock(QDockWidget):
         self.st.addItems(["Unknown", "Failure", "Normal"])
         self.st.currentIndexChanged.connect(self.st_selectionchange)
         # Line #5
-        self.setButton = QPushButton("SET(UPDATE)",self)
+        self.setButton = QPushButton("SET(UPDATE)", self)
         self.setButton.clicked.connect(self.on_setButton_click)
         layout = QGridLayout()
         # Add widgets to the layout
         # Line #1
-        layout.addWidget(self.l1, 0,1)
-        layout.addWidget(self.cb, 0,2)
+        layout.addWidget(self.l1, 0, 1)
+        layout.addWidget(self.cb, 0, 2)
         # Line #2 
-        layout.addWidget(self.l21, 1,0)
-        layout.addWidget(self.cRoomTemp, 1,1)
-        layout.addWidget(self.l22, 1,2)
-        layout.addWidget(self.tRoomTemp, 1,3)
+        layout.addWidget(self.l21, 1, 0)
+        layout.addWidget(self.cRoomTemp, 1, 1)
+        layout.addWidget(self.l22, 1, 2)
+        layout.addWidget(self.tRoomTemp, 1, 3)
         # Line #3 
-        layout.addWidget(self.l31, 2,0)
-        layout.addWidget(self.md, 2,1)
-        layout.addWidget(self.l32, 2,2)
-        layout.addWidget(self.fn, 2,3)
+        layout.addWidget(self.l31, 2, 0)
+        layout.addWidget(self.md, 2, 1)
+        layout.addWidget(self.l32, 2, 2)
+        layout.addWidget(self.fn, 2, 3)
         # Line #4 
-        layout.addWidget(self.l41, 3,0)
-        layout.addWidget(self.od, 3,1)
-        layout.addWidget(self.l42, 3,2)
-        layout.addWidget(self.st, 3,3)
+        layout.addWidget(self.l41, 3, 0)
+        layout.addWidget(self.od, 3, 1)
+        layout.addWidget(self.l42, 3, 2)
+        layout.addWidget(self.st, 3, 3)
         # Line #5 
-        layout.addWidget(self.setButton, 4,1,4,2)       
+        layout.addWidget(self.setButton, 4, 1, 4, 2)
         # Set the layout on the application's window
         # self.setLayout(layout)
         widget = QWidget(self)
@@ -377,39 +364,35 @@ class AirconditionDock(QDockWidget):
     def update_temp_Room(self, text):
         self.cRoomTemp.setText(text)  
 
-    def selectionchange(self,i):
-        print ("Current index",i,"selection changed ",self.cb.currentText())
+    def selectionchange(self, i):
+        print ("Current index", i, "selection changed ", self.cb.currentText())
 
-    def md_selectionchange(self,i):
-        print ("Current index",i,"selection changed ",self.md.currentText())
+    def md_selectionchange(self, i):
+        print ("Current index", i, "selection changed ", self.md.currentText())
 
-    def fn_selectionchange(self,i):
-        print ("Current index",i,"selection changed ",self.fn.currentText())
+    def fn_selectionchange(self, i):
+        print ("Current index", i, "selection changed ", self.fn.currentText())
 
-    def od_selectionchange(self,i):
-        print ("Current index",i,"selection changed ",self.od.currentText())
+    def od_selectionchange(self, i):
+        print ("Current index", i, "selection changed ", self.od.currentText())
         if "ON" in self.od.currentText():
             self.od.setStyleSheet("color: green")
         elif "OFF" in self.od.currentText():
             self.od.setStyleSheet("color: red")
         else:
-            self.od.setStyleSheet("color: none") 
+            self.od.setStyleSheet("color: none")
 
-        #setStyleSheet("color: blue;"
-        #                "background-color: yellow;"
-        #                "selection-color: yellow;"
-        #                "selection-background-color: blue;");    
+    def st_selectionchange(self, i):
+        print ("Current index", i, "selection changed ", self.st.currentText())
 
-    def st_selectionchange(self,i):
-        print ("Current index",i,"selection changed ",self.st.currentText())  
-
-    def tr_selectionchange(self,i):
-        print ("Current index",i,"selection changed ",self.tRoomTemp.currentText())  
-        self.settemp=self.tRoomTemp.currentText()
+    def tr_selectionchange(self, i):
+        print ("Current index", i, "selection changed ", self.tRoomTemp.currentText())
+        self.settemp = self.tRoomTemp.currentText()
 
     def on_setButton_click(self):
         self.setButton.setStyleSheet("background-color: green")             
-        self.mc.publish_to(self.topic_sub,'Set temperature to: '+ self.settemp)
+        self.mc.publish_to(self.topic_sub, 'Set temperature to: ' + self.settemp)
+
 
 class PlotDock(QDockWidget):
     """Plots """
@@ -418,9 +401,9 @@ class PlotDock(QDockWidget):
         self.setWindowTitle("Plots")
         self.graphWidget = pg.PlotWidget()
         self.setWidget(self.graphWidget)
-        rez= da.filter_by_date('data','2021-05-16','2021-05-18', 'ElecMeter')        
-        datal = []  
-        timel = []        
+        rez = da.filter_by_date('data', '2021-05-16', '2021-05-18', 'ElecMeter')
+        datal = []
+        timel = []
         for row in rez:
             timel.append(row[1])
             datal.append(float("{:.2f}".format(float(row[2]))))
@@ -431,25 +414,24 @@ class PlotDock(QDockWidget):
         styles = {"color": "#f00", "font-size": "20px"}
         self.graphWidget.setLabel("left", "Value (°C/m3)", **styles)
         self.graphWidget.setLabel("bottom", "Date (dd.hh/hh.mm)", **styles)
-        #Add legend
+        # Add legend
         self.graphWidget.addLegend()
-        #Add grid
+        # Add grid
         self.graphWidget.showGrid(x=True, y=True)
-        #Set Range
-        #self.graphWidget.setXRange(0, 10, padding=0)
-        #self.graphWidget.setYRange(20, 55, padding=0)            
+        # Set Range
+        # self.graphWidget.setXRange(0, 10, padding=0)
+        # self.graphWidget.setYRange(20, 55, padding=0)
         pen = pg.mkPen(color=(255, 0, 0))
         self.data_line=self.graphWidget.plot( datal,  pen=pen)
 
-    def plot(self, timel, datal):
-        self.data_line.setData( datal)  # Update the data.
+    def plot(self, datal):
+        self.data_line.setData(datal)  # Update the data.
 
-class MainWindow(QMainWindow):    
+
+class MainWindow(QMainWindow):
     def __init__(self, parent=None):
-        QMainWindow.__init__(self, parent)                
-        # Init of Mqtt_client class
-        # self.mc=Mqtt_client()
-        self.mc=MC()        
+        QMainWindow.__init__(self, parent)
+        self.mc = MC()
         # general GUI settings
         self.setUnifiedTitleAndToolBarOnMac(True)
         # set up main window
@@ -460,7 +442,7 @@ class MainWindow(QMainWindow):
         self.statusDock = StatusDock(self.mc)
         self.tempDock = TempDock(self.mc)
         self.graphsDock = GraphsDock(self.mc)
-        self.airconditionDock= AirconditionDock(self.mc)
+        self.airconditionDock = AirconditionDock(self.mc)
         self.plotsDock = PlotDock()
         self.addDockWidget(Qt.TopDockWidgetArea, self.connectionDock)
         self.addDockWidget(Qt.TopDockWidgetArea, self.tempDock)
@@ -468,6 +450,7 @@ class MainWindow(QMainWindow):
         self.addDockWidget(Qt.BottomDockWidgetArea, self.statusDock)
         self.addDockWidget(Qt.BottomDockWidgetArea, self.graphsDock)
         self.addDockWidget(Qt.BottomDockWidgetArea, self.plotsDock)       
+
 
 if __name__ == "__main__":
     try:
